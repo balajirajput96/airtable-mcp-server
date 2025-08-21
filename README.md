@@ -250,6 +250,25 @@ Create either a global (`~/.cursor/mcp.json`) or project-specific (`.cursor/mcp.
     - `name` (string, optional): New name for the field
     - `description` (string, optional): New description for the field
 
+- **generate_resume**
+  - Generate a professional resume from Airtable data in markdown or JSON format
+  - Input parameters:
+    - `baseId` (string, required): The ID of the Airtable base containing resume data
+    - `profileTableId` (string, required): The ID of the table containing profile/personal information
+    - `experienceTableId` (string, optional): The ID of the table containing work experience records
+    - `educationTableId` (string, optional): The ID of the table containing education records
+    - `skillsTableId` (string, optional): The ID of the table containing skills records
+    - `projectsTableId` (string, optional): The ID of the table containing projects records
+    - `certificationsTableId` (string, optional): The ID of the table containing certifications records
+    - `profileRecordId` (string, optional): Specific record ID from profile table
+    - `style` (string, optional): Resume style preference (concise, detailed, managerial, academic)
+    - `language` (string, optional): Language for the resume (default: 'en')
+    - `format` (string, optional): Output format (markdown, json)
+    - `includeProjects` (boolean, optional): Whether to include projects section
+    - `includeCertifications` (boolean, optional): Whether to include certifications section
+    - `maxExperience` (number, optional): Maximum number of experience entries
+    - `maxProjects` (number, optional): Maximum number of projects to include
+
 ### Resources
 
 The server provides schema information for Airtable bases and tables:
@@ -263,6 +282,24 @@ The server provides schema information for Airtable bases and tables:
     - Field definitions (ID, name, type, description, options)
     - View definitions (ID, name, type)
   - Automatically discovered from Airtable's metadata API
+
+## n8n Integration
+
+This server includes specialized resume generation tools that can be integrated with n8n workflows for automated resume creation. The integration supports:
+
+- **Webhook-triggered resume generation** from Android devices or other platforms
+- **Automated data extraction** from structured Airtable bases
+- **Multiple output formats** (Markdown, JSON)
+- **Customizable resume styles** (concise, detailed, managerial, academic)
+- **Google Drive integration** for file storage
+- **Email delivery** of generated resumes
+
+See [N8N_RESUME_INTEGRATION.md](./N8N_RESUME_INTEGRATION.md) for a complete implementation guide including:
+- Airtable database schema setup
+- n8n workflow configuration
+- Android trigger setup
+- Security best practices
+- Troubleshooting guide
 
 ## Contributing
 

@@ -25,6 +25,7 @@ import {
 	CreateFieldArgsSchema,
 	UpdateFieldArgsSchema,
 	SearchRecordsArgsSchema,
+	ResumeGenerationArgsSchema,
 	type IAirtableService,
 	type IAirtableMCPServer,
 } from './types.js';
@@ -205,6 +206,11 @@ export class AirtableMCPServer implements IAirtableMCPServer {
 					name: 'update_field',
 					description: 'Update a field\'s name or description',
 					inputSchema: getInputSchema(UpdateFieldArgsSchema),
+				},
+				{
+					name: 'generate_resume',
+					description: 'Generate a resume from Airtable data in markdown or JSON format',
+					inputSchema: getInputSchema(ResumeGenerationArgsSchema),
 				},
 			],
 		};
@@ -406,6 +412,12 @@ export class AirtableMCPServer implements IAirtableMCPServer {
 						},
 					);
 					return formatToolResponse(field);
+				}
+
+				case 'generate_resume': {
+					const args = ResumeGenerationArgsSchema.parse(request.params.arguments);
+					const result = await this.airtableService.generateResume(args);
+					return formatToolResponse(result);
 				}
 
 				default: {

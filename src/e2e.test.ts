@@ -231,6 +231,7 @@ describe.each([
 				'update_table',
 				'create_field',
 				'update_field',
+				'generate_resume',
 			]);
 			expect(result.tools[0]).toMatchObject({
 				name: 'list_records',

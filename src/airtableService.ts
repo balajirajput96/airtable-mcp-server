@@ -7,13 +7,16 @@ import {
 	type Field,
 	type Table,
 	type AirtableRecord,
+	type ResumeData,
 	ListBasesResponseSchema,
 	BaseSchemaResponseSchema,
 	TableSchema,
 	FieldSchema,
+	ResumeGenerationArgsSchema,
 	type FieldSet,
 } from './types.js';
 import {enhanceAirtableError} from './enhanceAirtableError.js';
+import {ResumeService} from './resumeService.js';
 
 export class AirtableService implements IAirtableService {
 	private readonly apiKey: string;
@@ -21,6 +24,8 @@ export class AirtableService implements IAirtableService {
 	private readonly baseUrl: string;
 
 	private readonly fetch: typeof fetch;
+
+	private resumeService: ResumeService;
 
 	constructor(
 		apiKey: string = process.env.AIRTABLE_API_KEY || '',
@@ -34,6 +39,7 @@ export class AirtableService implements IAirtableService {
 
 		this.baseUrl = baseUrl;
 		this.fetch = fetchFn;
+		this.resumeService = new ResumeService(this);
 	}
 
 	async listBases(): Promise<ListBasesResponse> {
@@ -255,6 +261,14 @@ export class AirtableService implements IAirtableService {
 		}
 
 		return searchableFields;
+	}
+
+	async generateResume(args: z.infer<typeof ResumeGenerationArgsSchema>): Promise<{
+		resumeData: ResumeData;
+		markdown?: string;
+		json?: string;
+	}> {
+		return this.resumeService.generateResume(args);
 	}
 
 	private async fetchFromAPI<T>(endpoint: string, schema: z.ZodSchema<T>, options: RequestInit = {}): Promise<T> {
