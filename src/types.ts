@@ -536,3 +536,47 @@ export type IAirtableService = {
 export type IAirtableMCPServer = {
 	connect(transport: Transport): Promise<void>;
 };
+
+// Automation-related schemas and types
+export const AutomationWorkflowSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	description: z.string().optional(),
+	type: z.enum(['resume_builder', 'portfolio_scan', 'linkedin_post', 'email_summary', 'drive_index', 'general']),
+	status: z.enum(['active', 'inactive', 'draft']),
+	config: z.record(z.any()).describe('Workflow configuration parameters'),
+	lastRun: z.string().optional().describe('ISO timestamp of last execution'),
+	results: z.record(z.any()).optional().describe('Last execution results'),
+});
+
+export const AnalyzeAutomationWorkflowsArgsSchema = z.object({
+	baseId: z.string(),
+	tableId: z.string().optional().describe('Specific table containing workflows. If not provided, searches all tables.'),
+	workflowType: z.enum(['resume_builder', 'portfolio_scan', 'linkedin_post', 'email_summary', 'drive_index', 'general']).optional().describe('Filter by workflow type'),
+	status: z.enum(['active', 'inactive', 'draft']).optional().describe('Filter by status'),
+});
+
+export const ManageResumeDataArgsSchema = z.object({
+	baseId: z.string(),
+	tableId: z.string(),
+	action: z.enum(['analyze', 'generate_draft', 'update_skills', 'format_experience']),
+	targetRole: z.string().optional().describe('Target role for resume optimization'),
+	yearsExperience: z.number().optional().describe('Years of experience to highlight'),
+	style: z.enum(['concise', 'detailed', 'technical', 'executive']).optional().describe('Resume style preference'),
+});
+
+export const TriggerAutomationArgsSchema = z.object({
+	baseId: z.string(),
+	workflowId: z.string().describe('ID of the workflow record to trigger'),
+	mode: z.enum(['simulate', 'execute']).default('simulate').describe('Whether to simulate or actually execute the workflow'),
+	parameters: z.record(z.any()).optional().describe('Runtime parameters for the workflow'),
+});
+
+export const GenerateAutomationSummaryArgsSchema = z.object({
+	baseId: z.string(),
+	timeRange: z.enum(['today', 'week', 'month', 'all']).default('week').describe('Time range for the summary'),
+	includeResults: z.boolean().default(true).describe('Whether to include execution results in the summary'),
+	workflowType: z.enum(['resume_builder', 'portfolio_scan', 'linkedin_post', 'email_summary', 'drive_index', 'general']).optional().describe('Filter by workflow type'),
+});
+
+export type AutomationWorkflow = z.infer<typeof AutomationWorkflowSchema>;
