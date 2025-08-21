@@ -4,6 +4,36 @@ A Model Context Protocol server that provides read and write access to Airtable 
 
 https://github.com/user-attachments/assets/c8285e76-d0ed-4018-94c7-20535db6c944
 
+## ⚠️ Looking for AIP Viewer Apps?
+
+If you're looking for **AIP file viewers** (Adobe Illustrator Plugin, ArcGIS, App Inventor packages, etc.), this repository is **not** what you need. This is an **Airtable** integration tool for LLMs.
+
+For AIP viewers, try these instead:
+
+### ArcGIS AIP (Add-In/Package)
+- **Viewer**: ArcGIS Pro
+- **Link**: [esri.com/en-us/arcgis/products/arcgis-pro/overview](https://esri.com/en-us/arcgis/products/arcgis-pro/overview)
+
+### Artlantis AIP (Shader/Plugin Package)  
+- **Viewer**: Artlantis
+- **Link**: [artlantis.com](https://artlantis.com)
+
+### Adobe Illustrator Plugin (.aip)
+- **Viewer**: Adobe Illustrator
+- **Link**: [adobe.com/products/illustrator.html](https://adobe.com/products/illustrator.html)
+
+### App Inventor Package (.aip)
+- **Viewer**: MIT App Inventor
+- **Link**: [appinventor.mit.edu](https://appinventor.mit.edu)
+
+### Alternative AI/PDF Viewers
+- **Adobe Acrobat Reader (PDF)**: [get.adobe.com/reader](https://get.adobe.com/reader)
+- **Photopea (Web-based)**: [photopea.com](https://photopea.com)
+- **Inkscape (Open-source)**: [inkscape.org](https://inkscape.org)
+- **IrfanView**: [irfanview.com](https://irfanview.com)
+
+---
+
 ## Installation
 
 **Step 1**: [Create an Airtable personal access token by clicking here](https://airtable.com/create/tokens/new). Details:
