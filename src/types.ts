@@ -531,8 +531,128 @@ export type IAirtableService = {
 	createField(baseId: string, tableId: string, field: Field): Promise<Field & {id: string}>;
 	updateField(baseId: string, tableId: string, fieldId: string, updates: {name?: string | undefined; description?: string | undefined}): Promise<Field & {id: string}>;
 	searchRecords(baseId: string, tableId: string, searchTerm: string, fieldIds?: string[], maxRecords?: number, view?: string): Promise<AirtableRecord[]>;
+	generateResume(args: z.infer<typeof ResumeGenerationArgsSchema>): Promise<{resumeData: ResumeData; markdown?: string; json?: string}>;
 };
 
 export type IAirtableMCPServer = {
 	connect(transport: Transport): Promise<void>;
 };
+
+// Resume generation schemas
+export const ResumeGenerationArgsSchema = z.object({
+	baseId: z.string().describe('The ID of the Airtable base containing resume data'),
+	profileTableId: z.string().describe('The ID of the table containing profile/personal information'),
+	experienceTableId: z.string().optional().describe('The ID of the table containing work experience records'),
+	educationTableId: z.string().optional().describe('The ID of the table containing education records'),
+	skillsTableId: z.string().optional().describe('The ID of the table containing skills records'),
+	projectsTableId: z.string().optional().describe('The ID of the table containing projects records'),
+	certificationsTableId: z.string().optional().describe('The ID of the table containing certifications records'),
+	profileRecordId: z.string().optional().describe('Specific record ID from profile table. If not provided, uses the first record'),
+	style: z.enum(['concise', 'detailed', 'managerial', 'academic']).default('concise').describe('Resume style preference'),
+	language: z.string().default('en').describe('Language for the resume'),
+	format: z.enum(['markdown', 'json']).default('markdown').describe('Output format for the resume'),
+	includeProjects: z.boolean().default(true).describe('Whether to include projects section'),
+	includeCertifications: z.boolean().default(true).describe('Whether to include certifications section'),
+	maxExperience: z.number().optional().describe('Maximum number of experience entries to include'),
+	maxProjects: z.number().optional().describe('Maximum number of projects to include'),
+});
+
+export const ResumeWebhookArgsSchema = z.object({
+	simulate: z.boolean().default(false).describe('Run in simulation mode (no external actions)'),
+	role: z.string().describe('Target role for the resume'),
+	years: z.number().describe('Years of experience'),
+	style: z.enum(['concise', 'detailed', 'managerial', 'academic']).default('concise'),
+	language: z.string().default('en'),
+	links: z.object({
+		linkedin: z.string().optional(),
+		github: z.string().optional(),
+		portfolio: z.string().optional(),
+	}).optional(),
+	airtable: z.object({
+		baseId: z.string(),
+		profileTableId: z.string(),
+		experienceTableId: z.string().optional(),
+		educationTableId: z.string().optional(),
+		skillsTableId: z.string().optional(),
+		projectsTableId: z.string().optional(),
+		certificationsTableId: z.string().optional(),
+	}),
+	email: z.object({
+		to: z.string().email(),
+	}).optional(),
+});
+
+export const ResumeProfile = z.object({
+	name: z.string(),
+	email: z.string().email().optional(),
+	phone: z.string().optional(),
+	location: z.string().optional(),
+	summary: z.string().optional(),
+	linkedin: z.string().optional(),
+	github: z.string().optional(),
+	portfolio: z.string().optional(),
+});
+
+export const ResumeExperience = z.object({
+	company: z.string(),
+	title: z.string(),
+	startDate: z.string(),
+	endDate: z.string().optional(),
+	current: z.boolean().default(false),
+	description: z.string().optional(),
+	achievements: z.array(z.string()).default([]),
+	technologies: z.array(z.string()).default([]),
+});
+
+export const ResumeEducation = z.object({
+	institution: z.string(),
+	degree: z.string(),
+	field: z.string().optional(),
+	startDate: z.string().optional(),
+	endDate: z.string().optional(),
+	gpa: z.string().optional(),
+	achievements: z.array(z.string()).default([]),
+});
+
+export const ResumeProject = z.object({
+	name: z.string(),
+	description: z.string(),
+	technologies: z.array(z.string()).default([]),
+	startDate: z.string().optional(),
+	endDate: z.string().optional(),
+	url: z.string().optional(),
+	github: z.string().optional(),
+	highlights: z.array(z.string()).default([]),
+});
+
+export const ResumeSkill = z.object({
+	category: z.string(),
+	skills: z.array(z.string()),
+	proficiency: z.enum(['beginner', 'intermediate', 'advanced', 'expert']).optional(),
+});
+
+export const ResumeCertification = z.object({
+	name: z.string(),
+	issuer: z.string(),
+	date: z.string().optional(),
+	expiryDate: z.string().optional(),
+	credentialId: z.string().optional(),
+	url: z.string().optional(),
+});
+
+export const ResumeData = z.object({
+	profile: ResumeProfile,
+	experience: z.array(ResumeExperience).default([]),
+	education: z.array(ResumeEducation).default([]),
+	projects: z.array(ResumeProject).default([]),
+	skills: z.array(ResumeSkill).default([]),
+	certifications: z.array(ResumeCertification).default([]),
+});
+
+export type ResumeProfile = z.infer<typeof ResumeProfile>;
+export type ResumeExperience = z.infer<typeof ResumeExperience>;
+export type ResumeEducation = z.infer<typeof ResumeEducation>;
+export type ResumeProject = z.infer<typeof ResumeProject>;
+export type ResumeSkill = z.infer<typeof ResumeSkill>;
+export type ResumeCertification = z.infer<typeof ResumeCertification>;
+export type ResumeData = z.infer<typeof ResumeData>;
