@@ -206,6 +206,21 @@ export class AirtableMCPServer implements IAirtableMCPServer {
 					description: 'Update a field\'s name or description',
 					inputSchema: getInputSchema(UpdateFieldArgsSchema),
 				},
+				{
+					name: 'analyze_automation_tools',
+					description: 'Get comprehensive analysis of AI automation tools including speed, ease of use, and pricing',
+					inputSchema: {
+						type: 'object',
+						properties: {
+							category: {
+								type: 'string',
+								enum: ['all', 'fastest', 'easiest', 'free', 'ai-agents'],
+								description: 'Filter tools by category - all tools, fastest, easiest to use, free options, or AI agents',
+							},
+						},
+						required: [],
+					},
+				},
 			],
 		};
 	}
@@ -408,6 +423,14 @@ export class AirtableMCPServer implements IAirtableMCPServer {
 					return formatToolResponse(field);
 				}
 
+				case 'analyze_automation_tools': {
+					const args = request.params.arguments as {category?: string};
+					const category = args?.category || 'all';
+
+					const automationToolsData = this.getAutomationToolsAnalysis(category);
+					return formatToolResponse(automationToolsData);
+				}
+
 				default: {
 					throw new Error(`Unknown tool: ${request.params.name}`);
 				}
@@ -418,5 +441,132 @@ export class AirtableMCPServer implements IAirtableMCPServer {
 				true,
 			);
 		}
+	}
+
+	private getAutomationToolsAnalysis(category: string): any {
+		const tools = {
+			'Make.com': {
+				speed: 'बहुत तेज़',
+				easeOfUse: 'बहुत आसान',
+				pricing: '$9/माह या 1,000 मुफ्त ऑपरेशन/माह',
+				features: ['विज़ुअल इंटरफ़ेस', 'बिना कोड के ऑटोमेशन', 'Zapier से सस्ता'],
+				bestFor: 'शुरुआती और छोटे व्यवसाय',
+				offer: 'मुफ्त टियर: 1,000 ऑपरेशन/माह',
+				category: ['fastest', 'easiest'],
+			},
+			Zapier: {
+				speed: 'मध्यम',
+				easeOfUse: 'बहुत आसान',
+				pricing: 'केवल 100 मुफ्त टास्क/माह, फिर महंगे प्लान',
+				features: ['7,000+ ऐप्स इंटीग्रेशन', 'सबसे अधिक कनेक्टिविटी', 'सरल इंटरफ़ेस'],
+				bestFor: 'गैर-तकनीकी उपयोगकर्ता',
+				offer: 'मुफ्त टियर: 100 टास्क/माह',
+				category: ['easiest'],
+			},
+			n8n: {
+				speed: 'बहुत तेज़',
+				easeOfUse: 'मध्यम (सीखने की आवश्यकता)',
+				pricing: 'पूर्णतः मुफ्त (Self-Hosted)',
+				features: ['ओपन-सोर्स', 'असीमित ऑटोमेशन', 'कोड जोड़ने की सुविधा'],
+				bestFor: 'तकनीकी उपयोगकर्ता और डेवलपर्स',
+				offer: 'Community Edition पूर्णतः मुफ्त',
+				category: ['fastest', 'free'],
+			},
+			'Google Apps Script': {
+				speed: 'तेज़',
+				easeOfUse: 'मध्यम से कठिन',
+				pricing: 'पूर्णतः मुफ्त और असीमित',
+				features: ['Google Workspace एकीकरण', 'जावास्क्रिप्ट आधारित', 'कोई मासिक सीमा नहीं'],
+				bestFor: 'Google Workspace उपयोगकर्ता',
+				offer: 'Google खाते के साथ पूर्णतः मुफ्त',
+				category: ['free'],
+			},
+			'Google Gemini 2.0': {
+				speed: 'अत्यंत तेज़',
+				easeOfUse: 'कठिन (डेवलपर के लिए)',
+				pricing: 'मुफ्त टियर उपलब्ध',
+				features: ['सबसे उन्नत AI', 'टेक्स्ट/इमेज/ऑडियो समझता है', 'API एक्सेस'],
+				bestFor: 'AI-संचालित एप्लिकेशन',
+				offer: 'मुफ्त टियर + पेड ऑप्शन',
+				category: ['fastest', 'ai-agents'],
+			},
+			'AutoGen (Microsoft)': {
+				speed: 'तेज़',
+				easeOfUse: 'कठिन (डेवलपर के लिए)',
+				pricing: 'पूर्णतः मुफ्त (ओपन-सोर्स)',
+				features: ['मल्टी-एजेंट सिस्टम', 'एजेंट कोलैबोरेशन', 'ओपन-सोर्स'],
+				bestFor: 'उन्नत AI एजेंट डेवलपमेंट',
+				offer: 'GitHub से मुफ्त डाउनलोड',
+				category: ['free', 'ai-agents'],
+			},
+			CrewAI: {
+				speed: 'तेज़',
+				easeOfUse: 'मध्यम से कठिन',
+				pricing: 'पूर्णतः मुफ्त (ओपन-सोर्स)',
+				features: ['AI एजेंट टीम', 'रोल-बेस्ड एजेंट्स', 'Python फ्रेमवर्क'],
+				bestFor: 'AI एजेंट टीम बनाना',
+				offer: 'ओपन-सोर्स लाइसेंस',
+				category: ['free', 'ai-agents'],
+			},
+		};
+
+		const recommendations = {
+			fastest: {
+				title: 'सबसे तेज़ टूल्स',
+				tools: ['Make.com', 'n8n', 'Google Gemini 2.0'],
+				description: 'ये टूल्स सबसे तेज़ प्रदर्शन प्रदान करते हैं',
+			},
+			easiest: {
+				title: 'सबसे आसान टूल्स',
+				tools: ['Make.com', 'Zapier'],
+				description: 'शुरुआती लोगों के लिए सबसे अच्छे विकल्प',
+			},
+			free: {
+				title: 'मुफ्त विकल्प',
+				tools: ['n8n', 'Google Apps Script', 'AutoGen (Microsoft)', 'CrewAI'],
+				description: 'कोई लागत के बिना शक्तिशाली ऑटोमेशन',
+			},
+			'ai-agents': {
+				title: 'AI एजेंट टूल्स',
+				tools: ['Google Gemini 2.0', 'AutoGen (Microsoft)', 'CrewAI'],
+				description: 'उन्नत AI एजेंट डेवलपमेंट के लिए',
+			},
+		};
+
+		if (category === 'all') {
+			return {
+				summary: 'सभी AI ऑटोमेशन टूल्स का विश्लेषण',
+				tools,
+				recommendations,
+				conclusion: {
+					beginners: 'Make.com - सबसे अच्छा बैलेंस',
+					technical: 'n8n - मुफ्त और शक्तिशाली',
+					google_users: 'Google Apps Script - मुफ्त Google इंटीग्रेशन',
+					ai_development: 'Google Gemini 2.0 - सबसे उन्नत',
+				},
+			};
+		}
+
+		if (category in recommendations) {
+			const rec = recommendations[category as keyof typeof recommendations];
+			const filteredTools: Record<string, any> = {};
+
+			for (const toolName of rec.tools) {
+				if (toolName in tools) {
+					filteredTools[toolName] = tools[toolName as keyof typeof tools];
+				}
+			}
+
+			return {
+				category: rec.title,
+				description: rec.description,
+				tools: filteredTools,
+			};
+		}
+
+		return {
+			error: 'अज्ञात श्रेणी',
+			availableCategories: ['all', 'fastest', 'easiest', 'free', 'ai-agents'],
+		};
 	}
 }
