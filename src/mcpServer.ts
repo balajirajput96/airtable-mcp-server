@@ -25,10 +25,7 @@ import {
 	CreateFieldArgsSchema,
 	UpdateFieldArgsSchema,
 	SearchRecordsArgsSchema,
-	AnalyzeAutomationWorkflowsArgsSchema,
-	ManageResumeDataArgsSchema,
-	TriggerAutomationArgsSchema,
-	GenerateAutomationSummaryArgsSchema,
+	ResumeGenerationArgsSchema,
 	type IAirtableService,
 	type IAirtableMCPServer,
 } from './types.js';
@@ -211,24 +208,9 @@ export class AirtableMCPServer implements IAirtableMCPServer {
 					inputSchema: getInputSchema(UpdateFieldArgsSchema),
 				},
 				{
-					name: 'analyze_automation_workflows',
-					description: 'Analyze automation workflows stored in Airtable for Balaji\'s automation system',
-					inputSchema: getInputSchema(AnalyzeAutomationWorkflowsArgsSchema),
-				},
-				{
-					name: 'manage_resume_data',
-					description: 'Manage resume and portfolio data stored in Airtable for automated generation',
-					inputSchema: getInputSchema(ManageResumeDataArgsSchema),
-				},
-				{
-					name: 'trigger_automation',
-					description: 'Trigger or simulate automation workflows with specified parameters',
-					inputSchema: getInputSchema(TriggerAutomationArgsSchema),
-				},
-				{
-					name: 'generate_automation_summary',
-					description: 'Generate comprehensive summary of automation workflow executions and results',
-					inputSchema: getInputSchema(GenerateAutomationSummaryArgsSchema),
+					name: 'generate_resume',
+					description: 'Generate a resume from Airtable data in markdown or JSON format',
+					inputSchema: getInputSchema(ResumeGenerationArgsSchema),
 				},
 			],
 		};
@@ -432,179 +414,10 @@ export class AirtableMCPServer implements IAirtableMCPServer {
 					return formatToolResponse(field);
 				}
 
-				case 'analyze_automation_workflows': {
-					const args = AnalyzeAutomationWorkflowsArgsSchema.parse(request.params.arguments);
-
-					// Build filter formula for workflow analysis
-					let filterFormula = '';
-					const filters = [];
-
-					if (args.workflowType) {
-						filters.push(`{type} = "${args.workflowType}"`);
-					}
-
-					if (args.status) {
-						filters.push(`{status} = "${args.status}"`);
-					}
-
-					if (filters.length > 0) {
-						filterFormula = filters.length === 1 ? filters[0]! : `AND(${filters.join(', ')})`;
-					}
-
-					// Get workflow records
-					const workflows = await this.airtableService.listRecords(
-						args.baseId,
-						args.tableId || 'tblWorkflows', // Default table name
-						{
-							filterByFormula: filterFormula || undefined,
-							maxRecords: 100,
-						},
-					);
-
-					// Analyze and categorize workflows
-					const analysis = {
-						totalWorkflows: workflows.length,
-						byType: workflows.reduce<Record<string, number>>((acc, w) => {
-							const type = w.fields.type as string;
-							acc[type] = (acc[type] || 0) + 1;
-							return acc;
-						}, {}),
-						byStatus: workflows.reduce<Record<string, number>>((acc, w) => {
-							const status = w.fields.status as string;
-							acc[status] = (acc[status] || 0) + 1;
-							return acc;
-						}, {}),
-						recentExecutions: workflows.filter((w) => w.fields.lastRun).length,
-						recommendations: this.generateWorkflowRecommendations(workflows),
-					};
-
-					return formatToolResponse({
-						analysis,
-						workflows: workflows.map((w) => ({
-							id: w.id,
-							name: w.fields.name,
-							type: w.fields.type,
-							status: w.fields.status,
-							lastRun: w.fields.lastRun,
-							config: w.fields.config,
-						})),
-					});
-				}
-
-				case 'manage_resume_data': {
-					const args = ManageResumeDataArgsSchema.parse(request.params.arguments);
-
-					const records = await this.airtableService.listRecords(args.baseId, args.tableId);
-
-					let result;
-					switch (args.action) {
-						case 'analyze':
-							result = this.analyzeResumeData(records, args.targetRole);
-							break;
-						case 'generate_draft':
-							result = this.generateResumeDraft(records, args);
-							break;
-						case 'update_skills':
-							result = this.updateSkillsForRole(records, args.targetRole);
-							break;
-						case 'format_experience':
-							result = this.formatExperienceSection(records, args.style);
-							break;
-					}
-
+				case 'generate_resume': {
+					const args = ResumeGenerationArgsSchema.parse(request.params.arguments);
+					const result = await this.airtableService.generateResume(args);
 					return formatToolResponse(result);
-				}
-
-				case 'trigger_automation': {
-					const args = TriggerAutomationArgsSchema.parse(request.params.arguments);
-
-					// Get the workflow record
-					const workflow = await this.airtableService.getRecord(args.baseId, 'tblWorkflows', args.workflowId);
-
-					if (args.mode === 'simulate') {
-						// Simulate the workflow execution
-						const simulation = this.simulateWorkflowExecution(workflow, args.parameters);
-						return formatToolResponse({
-							mode: 'simulation',
-							workflow: {
-								id: workflow.id,
-								name: workflow.fields.name,
-								type: workflow.fields.type,
-							},
-							parameters: args.parameters,
-							simulation,
-						});
-					}
-
-					// Execute the workflow (placeholder for actual execution)
-					const execution = await this.executeWorkflow(workflow, args.parameters);
-
-					// Update the workflow record with execution results
-					await this.airtableService.updateRecords(args.baseId, 'tblWorkflows', [{
-						id: args.workflowId,
-						fields: {
-							lastRun: new Date().toISOString(),
-							results: execution.results,
-						},
-					}]);
-
-					return formatToolResponse({
-						mode: 'execution',
-						workflow: {
-							id: workflow.id,
-							name: workflow.fields.name,
-							type: workflow.fields.type,
-						},
-						execution,
-					});
-				}
-
-				case 'generate_automation_summary': {
-					const args = GenerateAutomationSummaryArgsSchema.parse(request.params.arguments);
-
-					// Build time filter
-					let timeFilter = '';
-					const now = new Date();
-					let startDate: Date;
-
-					switch (args.timeRange) {
-						case 'today':
-							startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-							break;
-						case 'week':
-							startDate = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
-							break;
-						case 'month':
-							startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-							break;
-						case 'all':
-							startDate = new Date(0); // All time
-							break;
-					}
-
-					if (args.timeRange !== 'all') {
-						timeFilter = `IS_AFTER({lastRun}, "${startDate.toISOString()}")`;
-					}
-
-					// Add workflow type filter if specified
-					let filterFormula = timeFilter;
-					if (args.workflowType && timeFilter) {
-						filterFormula = `AND(${timeFilter}, {type} = "${args.workflowType}")`;
-					} else if (args.workflowType) {
-						filterFormula = `{type} = "${args.workflowType}"`;
-					}
-
-					const workflows = await this.airtableService.listRecords(
-						args.baseId,
-						'tblWorkflows',
-						{
-							filterByFormula: filterFormula || undefined,
-							maxRecords: 200,
-						},
-					);
-
-					const summary = this.generateExecutionSummary(workflows, args);
-					return formatToolResponse(summary);
 				}
 
 				default: {

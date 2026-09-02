@@ -223,6 +223,24 @@ See [N8N_RESUME_INTEGRATION.md](./N8N_RESUME_INTEGRATION.md) for a complete impl
 - Security best practices
 - Troubleshooting guide
 
+## n8n Integration
+
+This server includes specialized resume generation tools that can be integrated with n8n workflows for automated resume creation. The integration supports:
+
+- **Webhook-triggered resume generation** from Android devices or other platforms
+- **Automated data extraction** from structured Airtable bases
+- **Multiple output formats** (Markdown, JSON)
+- **Customizable resume styles** (concise, detailed, managerial, academic)
+- **Google Drive integration** for file storage
+- **Email delivery** of generated resumes
+
+See [N8N_RESUME_INTEGRATION.md](./N8N_RESUME_INTEGRATION.md) for a complete implementation guide including:
+- Airtable database schema setup
+- n8n workflow configuration
+- Android trigger setup
+- Security best practices
+- Troubleshooting guide
+
 ## Contributing
 
 Pull requests are welcomed on GitHub! To get started:

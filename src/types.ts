@@ -593,46 +593,121 @@ export type IAirtableMCPServer = {
 	connect(transport: Transport): Promise<void>;
 };
 
-// Automation-related schemas and types
-export const AutomationWorkflowSchema = z.object({
-	id: z.string(),
+// Resume generation schemas
+export const ResumeGenerationArgsSchema = z.object({
+	baseId: z.string().describe('The ID of the Airtable base containing resume data'),
+	profileTableId: z.string().describe('The ID of the table containing profile/personal information'),
+	experienceTableId: z.string().optional().describe('The ID of the table containing work experience records'),
+	educationTableId: z.string().optional().describe('The ID of the table containing education records'),
+	skillsTableId: z.string().optional().describe('The ID of the table containing skills records'),
+	projectsTableId: z.string().optional().describe('The ID of the table containing projects records'),
+	certificationsTableId: z.string().optional().describe('The ID of the table containing certifications records'),
+	profileRecordId: z.string().optional().describe('Specific record ID from profile table. If not provided, uses the first record'),
+	style: z.enum(['concise', 'detailed', 'managerial', 'academic']).default('concise').describe('Resume style preference'),
+	language: z.string().default('en').describe('Language for the resume'),
+	format: z.enum(['markdown', 'json']).default('markdown').describe('Output format for the resume'),
+	includeProjects: z.boolean().default(true).describe('Whether to include projects section'),
+	includeCertifications: z.boolean().default(true).describe('Whether to include certifications section'),
+	maxExperience: z.number().optional().describe('Maximum number of experience entries to include'),
+	maxProjects: z.number().optional().describe('Maximum number of projects to include'),
+});
+
+export const ResumeWebhookArgsSchema = z.object({
+	simulate: z.boolean().default(false).describe('Run in simulation mode (no external actions)'),
+	role: z.string().describe('Target role for the resume'),
+	years: z.number().describe('Years of experience'),
+	style: z.enum(['concise', 'detailed', 'managerial', 'academic']).default('concise'),
+	language: z.string().default('en'),
+	links: z.object({
+		linkedin: z.string().optional(),
+		github: z.string().optional(),
+		portfolio: z.string().optional(),
+	}).optional(),
+	airtable: z.object({
+		baseId: z.string(),
+		profileTableId: z.string(),
+		experienceTableId: z.string().optional(),
+		educationTableId: z.string().optional(),
+		skillsTableId: z.string().optional(),
+		projectsTableId: z.string().optional(),
+		certificationsTableId: z.string().optional(),
+	}),
+	email: z.object({
+		to: z.string().email(),
+	}).optional(),
+});
+
+export const ResumeProfile = z.object({
 	name: z.string(),
+	email: z.string().email().optional(),
+	phone: z.string().optional(),
+	location: z.string().optional(),
+	summary: z.string().optional(),
+	linkedin: z.string().optional(),
+	github: z.string().optional(),
+	portfolio: z.string().optional(),
+});
+
+export const ResumeExperience = z.object({
+	company: z.string(),
+	title: z.string(),
+	startDate: z.string(),
+	endDate: z.string().optional(),
+	current: z.boolean().default(false),
 	description: z.string().optional(),
-	type: z.enum(['resume_builder', 'portfolio_scan', 'linkedin_post', 'email_summary', 'drive_index', 'general']),
-	status: z.enum(['active', 'inactive', 'draft']),
-	config: z.record(z.any()).describe('Workflow configuration parameters'),
-	lastRun: z.string().optional().describe('ISO timestamp of last execution'),
-	results: z.record(z.any()).optional().describe('Last execution results'),
+	achievements: z.array(z.string()).default([]),
+	technologies: z.array(z.string()).default([]),
 });
 
-export const AnalyzeAutomationWorkflowsArgsSchema = z.object({
-	baseId: z.string(),
-	tableId: z.string().optional().describe('Specific table containing workflows. If not provided, searches all tables.'),
-	workflowType: z.enum(['resume_builder', 'portfolio_scan', 'linkedin_post', 'email_summary', 'drive_index', 'general']).optional().describe('Filter by workflow type'),
-	status: z.enum(['active', 'inactive', 'draft']).optional().describe('Filter by status'),
+export const ResumeEducation = z.object({
+	institution: z.string(),
+	degree: z.string(),
+	field: z.string().optional(),
+	startDate: z.string().optional(),
+	endDate: z.string().optional(),
+	gpa: z.string().optional(),
+	achievements: z.array(z.string()).default([]),
 });
 
-export const ManageResumeDataArgsSchema = z.object({
-	baseId: z.string(),
-	tableId: z.string(),
-	action: z.enum(['analyze', 'generate_draft', 'update_skills', 'format_experience']),
-	targetRole: z.string().optional().describe('Target role for resume optimization'),
-	yearsExperience: z.number().optional().describe('Years of experience to highlight'),
-	style: z.enum(['concise', 'detailed', 'technical', 'executive']).optional().describe('Resume style preference'),
+export const ResumeProject = z.object({
+	name: z.string(),
+	description: z.string(),
+	technologies: z.array(z.string()).default([]),
+	startDate: z.string().optional(),
+	endDate: z.string().optional(),
+	url: z.string().optional(),
+	github: z.string().optional(),
+	highlights: z.array(z.string()).default([]),
 });
 
-export const TriggerAutomationArgsSchema = z.object({
-	baseId: z.string(),
-	workflowId: z.string().describe('ID of the workflow record to trigger'),
-	mode: z.enum(['simulate', 'execute']).default('simulate').describe('Whether to simulate or actually execute the workflow'),
-	parameters: z.record(z.any()).optional().describe('Runtime parameters for the workflow'),
+export const ResumeSkill = z.object({
+	category: z.string(),
+	skills: z.array(z.string()),
+	proficiency: z.enum(['beginner', 'intermediate', 'advanced', 'expert']).optional(),
 });
 
-export const GenerateAutomationSummaryArgsSchema = z.object({
-	baseId: z.string(),
-	timeRange: z.enum(['today', 'week', 'month', 'all']).default('week').describe('Time range for the summary'),
-	includeResults: z.boolean().default(true).describe('Whether to include execution results in the summary'),
-	workflowType: z.enum(['resume_builder', 'portfolio_scan', 'linkedin_post', 'email_summary', 'drive_index', 'general']).optional().describe('Filter by workflow type'),
+export const ResumeCertification = z.object({
+	name: z.string(),
+	issuer: z.string(),
+	date: z.string().optional(),
+	expiryDate: z.string().optional(),
+	credentialId: z.string().optional(),
+	url: z.string().optional(),
 });
 
-export type AutomationWorkflow = z.infer<typeof AutomationWorkflowSchema>;
+export const ResumeData = z.object({
+	profile: ResumeProfile,
+	experience: z.array(ResumeExperience).default([]),
+	education: z.array(ResumeEducation).default([]),
+	projects: z.array(ResumeProject).default([]),
+	skills: z.array(ResumeSkill).default([]),
+	certifications: z.array(ResumeCertification).default([]),
+});
+
+export type ResumeProfile = z.infer<typeof ResumeProfile>;
+export type ResumeExperience = z.infer<typeof ResumeExperience>;
+export type ResumeEducation = z.infer<typeof ResumeEducation>;
+export type ResumeProject = z.infer<typeof ResumeProject>;
+export type ResumeSkill = z.infer<typeof ResumeSkill>;
+export type ResumeCertification = z.infer<typeof ResumeCertification>;
+export type ResumeData = z.infer<typeof ResumeData>;
