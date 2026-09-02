@@ -232,9 +232,7 @@ describe.each([
 				'update_table',
 				'create_field',
 				'update_field',
-				'create_comment',
-				'list_comments',
-				'upload_attachment',
+				'generate_resume',
 			]);
 			expect(result.tools[0]).toMatchObject({
 				name: 'list_records',
