@@ -211,24 +211,19 @@ export class AirtableMCPServer implements IAirtableMCPServer {
 					inputSchema: getInputSchema(UpdateFieldArgsSchema),
 				},
 				{
-					name: 'analyze_automation_workflows',
-					description: 'Analyze automation workflows stored in Airtable for Balaji\'s automation system',
-					inputSchema: getInputSchema(AnalyzeAutomationWorkflowsArgsSchema),
-				},
-				{
-					name: 'manage_resume_data',
-					description: 'Manage resume and portfolio data stored in Airtable for automated generation',
-					inputSchema: getInputSchema(ManageResumeDataArgsSchema),
-				},
-				{
-					name: 'trigger_automation',
-					description: 'Trigger or simulate automation workflows with specified parameters',
-					inputSchema: getInputSchema(TriggerAutomationArgsSchema),
-				},
-				{
-					name: 'generate_automation_summary',
-					description: 'Generate comprehensive summary of automation workflow executions and results',
-					inputSchema: getInputSchema(GenerateAutomationSummaryArgsSchema),
+					name: 'analyze_automation_tools',
+					description: 'Get comprehensive analysis of AI automation tools including speed, ease of use, and pricing',
+					inputSchema: {
+						type: 'object',
+						properties: {
+							category: {
+								type: 'string',
+								enum: ['all', 'fastest', 'easiest', 'free', 'ai-agents'],
+								description: 'Filter tools by category - all tools, fastest, easiest to use, free options, or AI agents',
+							},
+						},
+						required: [],
+					},
 				},
 			],
 		};
@@ -432,179 +427,12 @@ export class AirtableMCPServer implements IAirtableMCPServer {
 					return formatToolResponse(field);
 				}
 
-				case 'analyze_automation_workflows': {
-					const args = AnalyzeAutomationWorkflowsArgsSchema.parse(request.params.arguments);
+				case 'analyze_automation_tools': {
+					const args = request.params.arguments as {category?: string};
+					const category = args?.category || 'all';
 
-					// Build filter formula for workflow analysis
-					let filterFormula = '';
-					const filters = [];
-
-					if (args.workflowType) {
-						filters.push(`{type} = "${args.workflowType}"`);
-					}
-
-					if (args.status) {
-						filters.push(`{status} = "${args.status}"`);
-					}
-
-					if (filters.length > 0) {
-						filterFormula = filters.length === 1 ? filters[0]! : `AND(${filters.join(', ')})`;
-					}
-
-					// Get workflow records
-					const workflows = await this.airtableService.listRecords(
-						args.baseId,
-						args.tableId || 'tblWorkflows', // Default table name
-						{
-							filterByFormula: filterFormula || undefined,
-							maxRecords: 100,
-						},
-					);
-
-					// Analyze and categorize workflows
-					const analysis = {
-						totalWorkflows: workflows.length,
-						byType: workflows.reduce<Record<string, number>>((acc, w) => {
-							const type = w.fields.type as string;
-							acc[type] = (acc[type] || 0) + 1;
-							return acc;
-						}, {}),
-						byStatus: workflows.reduce<Record<string, number>>((acc, w) => {
-							const status = w.fields.status as string;
-							acc[status] = (acc[status] || 0) + 1;
-							return acc;
-						}, {}),
-						recentExecutions: workflows.filter((w) => w.fields.lastRun).length,
-						recommendations: this.generateWorkflowRecommendations(workflows),
-					};
-
-					return formatToolResponse({
-						analysis,
-						workflows: workflows.map((w) => ({
-							id: w.id,
-							name: w.fields.name,
-							type: w.fields.type,
-							status: w.fields.status,
-							lastRun: w.fields.lastRun,
-							config: w.fields.config,
-						})),
-					});
-				}
-
-				case 'manage_resume_data': {
-					const args = ManageResumeDataArgsSchema.parse(request.params.arguments);
-
-					const records = await this.airtableService.listRecords(args.baseId, args.tableId);
-
-					let result;
-					switch (args.action) {
-						case 'analyze':
-							result = this.analyzeResumeData(records, args.targetRole);
-							break;
-						case 'generate_draft':
-							result = this.generateResumeDraft(records, args);
-							break;
-						case 'update_skills':
-							result = this.updateSkillsForRole(records, args.targetRole);
-							break;
-						case 'format_experience':
-							result = this.formatExperienceSection(records, args.style);
-							break;
-					}
-
-					return formatToolResponse(result);
-				}
-
-				case 'trigger_automation': {
-					const args = TriggerAutomationArgsSchema.parse(request.params.arguments);
-
-					// Get the workflow record
-					const workflow = await this.airtableService.getRecord(args.baseId, 'tblWorkflows', args.workflowId);
-
-					if (args.mode === 'simulate') {
-						// Simulate the workflow execution
-						const simulation = this.simulateWorkflowExecution(workflow, args.parameters);
-						return formatToolResponse({
-							mode: 'simulation',
-							workflow: {
-								id: workflow.id,
-								name: workflow.fields.name,
-								type: workflow.fields.type,
-							},
-							parameters: args.parameters,
-							simulation,
-						});
-					}
-
-					// Execute the workflow (placeholder for actual execution)
-					const execution = await this.executeWorkflow(workflow, args.parameters);
-
-					// Update the workflow record with execution results
-					await this.airtableService.updateRecords(args.baseId, 'tblWorkflows', [{
-						id: args.workflowId,
-						fields: {
-							lastRun: new Date().toISOString(),
-							results: execution.results,
-						},
-					}]);
-
-					return formatToolResponse({
-						mode: 'execution',
-						workflow: {
-							id: workflow.id,
-							name: workflow.fields.name,
-							type: workflow.fields.type,
-						},
-						execution,
-					});
-				}
-
-				case 'generate_automation_summary': {
-					const args = GenerateAutomationSummaryArgsSchema.parse(request.params.arguments);
-
-					// Build time filter
-					let timeFilter = '';
-					const now = new Date();
-					let startDate: Date;
-
-					switch (args.timeRange) {
-						case 'today':
-							startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-							break;
-						case 'week':
-							startDate = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
-							break;
-						case 'month':
-							startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-							break;
-						case 'all':
-							startDate = new Date(0); // All time
-							break;
-					}
-
-					if (args.timeRange !== 'all') {
-						timeFilter = `IS_AFTER({lastRun}, "${startDate.toISOString()}")`;
-					}
-
-					// Add workflow type filter if specified
-					let filterFormula = timeFilter;
-					if (args.workflowType && timeFilter) {
-						filterFormula = `AND(${timeFilter}, {type} = "${args.workflowType}")`;
-					} else if (args.workflowType) {
-						filterFormula = `{type} = "${args.workflowType}"`;
-					}
-
-					const workflows = await this.airtableService.listRecords(
-						args.baseId,
-						'tblWorkflows',
-						{
-							filterByFormula: filterFormula || undefined,
-							maxRecords: 200,
-						},
-					);
-
-					const summary = this.generateExecutionSummary(workflows, args);
-					return formatToolResponse(summary);
+					const automationToolsData = this.getAutomationToolsAnalysis(category);
+					return formatToolResponse(automationToolsData);
 				}
 
 				default: {
@@ -619,310 +447,130 @@ export class AirtableMCPServer implements IAirtableMCPServer {
 		}
 	}
 
-	private generateWorkflowRecommendations(workflows: any[]): string[] {
-		const recommendations = [];
+	private getAutomationToolsAnalysis(category: string): any {
+		const tools = {
+			'Make.com': {
+				speed: 'बहुत तेज़',
+				easeOfUse: 'बहुत आसान',
+				pricing: '$9/माह या 1,000 मुफ्त ऑपरेशन/माह',
+				features: ['विज़ुअल इंटरफ़ेस', 'बिना कोड के ऑटोमेशन', 'Zapier से सस्ता'],
+				bestFor: 'शुरुआती और छोटे व्यवसाय',
+				offer: 'मुफ्त टियर: 1,000 ऑपरेशन/माह',
+				category: ['fastest', 'easiest'],
+			},
+			Zapier: {
+				speed: 'मध्यम',
+				easeOfUse: 'बहुत आसान',
+				pricing: 'केवल 100 मुफ्त टास्क/माह, फिर महंगे प्लान',
+				features: ['7,000+ ऐप्स इंटीग्रेशन', 'सबसे अधिक कनेक्टिविटी', 'सरल इंटरफ़ेस'],
+				bestFor: 'गैर-तकनीकी उपयोगकर्ता',
+				offer: 'मुफ्त टियर: 100 टास्क/माह',
+				category: ['easiest'],
+			},
+			n8n: {
+				speed: 'बहुत तेज़',
+				easeOfUse: 'मध्यम (सीखने की आवश्यकता)',
+				pricing: 'पूर्णतः मुफ्त (Self-Hosted)',
+				features: ['ओपन-सोर्स', 'असीमित ऑटोमेशन', 'कोड जोड़ने की सुविधा'],
+				bestFor: 'तकनीकी उपयोगकर्ता और डेवलपर्स',
+				offer: 'Community Edition पूर्णतः मुफ्त',
+				category: ['fastest', 'free'],
+			},
+			'Google Apps Script': {
+				speed: 'तेज़',
+				easeOfUse: 'मध्यम से कठिन',
+				pricing: 'पूर्णतः मुफ्त और असीमित',
+				features: ['Google Workspace एकीकरण', 'जावास्क्रिप्ट आधारित', 'कोई मासिक सीमा नहीं'],
+				bestFor: 'Google Workspace उपयोगकर्ता',
+				offer: 'Google खाते के साथ पूर्णतः मुफ्त',
+				category: ['free'],
+			},
+			'Google Gemini 2.0': {
+				speed: 'अत्यंत तेज़',
+				easeOfUse: 'कठिन (डेवलपर के लिए)',
+				pricing: 'मुफ्त टियर उपलब्ध',
+				features: ['सबसे उन्नत AI', 'टेक्स्ट/इमेज/ऑडियो समझता है', 'API एक्सेस'],
+				bestFor: 'AI-संचालित एप्लिकेशन',
+				offer: 'मुफ्त टियर + पेड ऑप्शन',
+				category: ['fastest', 'ai-agents'],
+			},
+			'AutoGen (Microsoft)': {
+				speed: 'तेज़',
+				easeOfUse: 'कठिन (डेवलपर के लिए)',
+				pricing: 'पूर्णतः मुफ्त (ओपन-सोर्स)',
+				features: ['मल्टी-एजेंट सिस्टम', 'एजेंट कोलैबोरेशन', 'ओपन-सोर्स'],
+				bestFor: 'उन्नत AI एजेंट डेवलपमेंट',
+				offer: 'GitHub से मुफ्त डाउनलोड',
+				category: ['free', 'ai-agents'],
+			},
+			CrewAI: {
+				speed: 'तेज़',
+				easeOfUse: 'मध्यम से कठिन',
+				pricing: 'पूर्णतः मुफ्त (ओपन-सोर्स)',
+				features: ['AI एजेंट टीम', 'रोल-बेस्ड एजेंट्स', 'Python फ्रेमवर्क'],
+				bestFor: 'AI एजेंट टीम बनाना',
+				offer: 'ओपन-सोर्स लाइसेंस',
+				category: ['free', 'ai-agents'],
+			},
+		};
 
-		const inactiveWorkflows = workflows.filter((w) => w.fields.status === 'inactive');
-		if (inactiveWorkflows.length > 0) {
-			recommendations.push(`${inactiveWorkflows.length} inactive workflows could be reviewed or archived`);
+		const recommendations = {
+			fastest: {
+				title: 'सबसे तेज़ टूल्स',
+				tools: ['Make.com', 'n8n', 'Google Gemini 2.0'],
+				description: 'ये टूल्स सबसे तेज़ प्रदर्शन प्रदान करते हैं',
+			},
+			easiest: {
+				title: 'सबसे आसान टूल्स',
+				tools: ['Make.com', 'Zapier'],
+				description: 'शुरुआती लोगों के लिए सबसे अच्छे विकल्प',
+			},
+			free: {
+				title: 'मुफ्त विकल्प',
+				tools: ['n8n', 'Google Apps Script', 'AutoGen (Microsoft)', 'CrewAI'],
+				description: 'कोई लागत के बिना शक्तिशाली ऑटोमेशन',
+			},
+			'ai-agents': {
+				title: 'AI एजेंट टूल्स',
+				tools: ['Google Gemini 2.0', 'AutoGen (Microsoft)', 'CrewAI'],
+				description: 'उन्नत AI एजेंट डेवलपमेंट के लिए',
+			},
+		};
+
+		if (category === 'all') {
+			return {
+				summary: 'सभी AI ऑटोमेशन टूल्स का विश्लेषण',
+				tools,
+				recommendations,
+				conclusion: {
+					beginners: 'Make.com - सबसे अच्छा बैलेंस',
+					technical: 'n8n - मुफ्त और शक्तिशाली',
+					google_users: 'Google Apps Script - मुफ्त Google इंटीग्रेशन',
+					ai_development: 'Google Gemini 2.0 - सबसे उन्नत',
+				},
+			};
 		}
 
-		const oldExecutions = workflows.filter((w) => {
-			if (!w.fields.lastRun) {
-				return true;
+		if (category in recommendations) {
+			const rec = recommendations[category as keyof typeof recommendations];
+			const filteredTools: Record<string, any> = {};
+
+			for (const toolName of rec.tools) {
+				if (toolName in tools) {
+					filteredTools[toolName] = tools[toolName as keyof typeof tools];
+				}
 			}
 
-			const lastRun = new Date(w.fields.lastRun);
-			const weekAgo = new Date(Date.now() - (7 * 24 * 60 * 60 * 1000));
-			return lastRun < weekAgo;
-		});
-		if (oldExecutions.length > 0) {
-			recommendations.push(`${oldExecutions.length} workflows haven't run in over a week`);
+			return {
+				category: rec.title,
+				description: rec.description,
+				tools: filteredTools,
+			};
 		}
-
-		return recommendations;
-	}
-
-	private analyzeResumeData(records: any[], targetRole?: string): any {
-		const skills = records.filter((r) => r.fields.type === 'skill');
-		const experience = records.filter((r) => r.fields.type === 'experience');
-		const projects = records.filter((r) => r.fields.type === 'project');
 
 		return {
-			summary: {
-				totalSkills: skills.length,
-				totalExperience: experience.length,
-				totalProjects: projects.length,
-			},
-			recommendations: targetRole
-				? [
-					`Optimize skills for ${targetRole} role`,
-					'Highlight relevant experience',
-					'Update project descriptions for impact',
-				]
-				: [
-					'Add target role for specific recommendations',
-				],
-			skillGaps: targetRole ? this.identifySkillGaps(skills, targetRole) : [],
+			error: 'अज्ञात श्रेणी',
+			availableCategories: ['all', 'fastest', 'easiest', 'free', 'ai-agents'],
 		};
-	}
-
-	private generateResumeDraft(records: any[], args: any): any {
-		const style = args.style || 'concise';
-		const targetRole = args.targetRole || 'Software Engineer';
-		const yearsExp = args.yearsExperience || 5;
-
-		return {
-			draft: {
-				header: {
-					name: 'Balaji Rajput',
-					title: `${targetRole} - ${yearsExp} Years Experience`,
-					summary: style === 'concise'
-						? 'Full-stack automation specialist building one-command Android→cloud systems.'
-						: 'Experienced full-stack automation engineer with expertise in building comprehensive automation systems that integrate Android devices with cloud workflows, specializing in n8n, webhooks, and AI-driven content generation.',
-				},
-				sections: this.buildResumeSections(records, style, targetRole),
-			},
-			metadata: {
-				style,
-				targetRole,
-				yearsExperience: yearsExp,
-				generatedAt: new Date().toISOString(),
-			},
-		};
-	}
-
-	private updateSkillsForRole(records: any[], targetRole?: string): any {
-		if (!targetRole) {
-			return {message: 'Target role required for skill optimization'};
-		}
-
-		const skillSuggestions = this.getSkillSuggestionsForRole(targetRole);
-		const currentSkills = records.filter((r) => r.fields.type === 'skill').map((r) => r.fields.name);
-
-		return {
-			targetRole,
-			currentSkills,
-			suggestedSkills: skillSuggestions,
-			skillsToAdd: skillSuggestions.filter((s) => !currentSkills.includes(s)),
-			skillsToEmphasize: currentSkills.filter((s) => skillSuggestions.includes(s)),
-		};
-	}
-
-	private formatExperienceSection(records: any[], style?: string): any {
-		const experience = records.filter((r) => r.fields.type === 'experience');
-		const format = style || 'concise';
-
-		return {
-			formattedExperience: experience.map((exp) => ({
-				company: exp.fields.company,
-				role: exp.fields.role,
-				duration: exp.fields.duration,
-				description: format === 'concise'
-					? this.createConciseDescription(exp.fields.description)
-					: this.createDetailedDescription(exp.fields.description),
-				achievements: exp.fields.achievements || [],
-			})),
-			style: format,
-		};
-	}
-
-	private simulateWorkflowExecution(workflow: any, _parameters?: any): any {
-		const workflowType = workflow.fields.type;
-
-		const baseSimulation = {
-			workflowType,
-			estimatedDuration: '2-5 minutes',
-			resourcesNeeded: ['Airtable API', 'AI processing'],
-			steps: [],
-		};
-
-		switch (workflowType) {
-			case 'resume_builder':
-				return {
-					...baseSimulation,
-					steps: [
-						'Fetch resume data from Airtable',
-						'Apply target role optimization',
-						'Generate formatted output',
-						'Save to specified location',
-					],
-					estimatedOutputs: ['Resume.md', 'Resume.pdf'],
-				};
-
-			case 'linkedin_post':
-				return {
-					...baseSimulation,
-					steps: [
-						'Draft content based on parameters',
-						'Apply formatting and hashtags',
-						'Validate post length and content',
-						'Prepare for publishing',
-					],
-					estimatedOutputs: ['LinkedIn post draft', 'Scheduling confirmation'],
-				};
-
-			default:
-				return {
-					...baseSimulation,
-					steps: ['Execute workflow steps', 'Process results', 'Update status'],
-				};
-		}
-	}
-
-	private async executeWorkflow(workflow: any, parameters?: any): Promise<any> {
-		// This is a placeholder for actual workflow execution
-		// In a real implementation, this would trigger n8n workflows or other automation systems
-
-		const workflowType = workflow.fields.type;
-		const startTime = new Date();
-
-		// Simulate some processing time
-		await new Promise<void>((resolve) => {
-			setTimeout(() => resolve(), 1000);
-		});
-
-		const execution = {
-			executionId: `exec_${Date.now()}`,
-			startTime: startTime.toISOString(),
-			endTime: new Date().toISOString(),
-			status: 'completed',
-			results: {
-				message: `Successfully executed ${workflowType} workflow`,
-				outputs: this.generateMockOutputs(workflowType, parameters),
-			},
-		};
-
-		return execution;
-	}
-
-	private generateExecutionSummary(workflows: any[], args: any): any {
-		const executions = workflows.filter((w) => w.fields.lastRun);
-
-		const summary = {
-			timeRange: args.timeRange,
-			totalWorkflows: workflows.length,
-			executedWorkflows: executions.length,
-			byType: workflows.reduce<Record<string, number>>((acc, w) => {
-				const type = String(w.fields.type);
-				acc[type] = (acc[type] || 0) + 1;
-				return acc;
-			}, {}),
-			recentActivity: executions.map((w) => ({
-				name: w.fields.name,
-				type: w.fields.type,
-				lastRun: w.fields.lastRun,
-				status: w.fields.status,
-				results: args.includeResults ? w.fields.results : undefined,
-			})),
-			insights: this.generateInsights(workflows, executions),
-		};
-
-		return summary;
-	}
-
-	// Helper methods for automation logic
-	private identifySkillGaps(skills: any[], targetRole: string): string[] {
-		const roleSkillMap: Record<string, string[]> = {
-			'Senior Automation Engineer': ['n8n', 'Docker', 'APIs', 'Webhooks', 'CI/CD'],
-			'Full-Stack Developer': ['React', 'Node.js', 'TypeScript', 'PostgreSQL', 'REST APIs'],
-			'DevOps Engineer': ['Kubernetes', 'Terraform', 'AWS', 'Jenkins', 'Monitoring'],
-		};
-
-		const requiredSkills = roleSkillMap[targetRole] || [];
-		const currentSkills = skills.map((s) => s.fields.name);
-
-		return requiredSkills.filter((skill) => !currentSkills.includes(skill));
-	}
-
-	private buildResumeSections(records: any[], style: string, _targetRole: string): any {
-		const experience = records.filter((r) => r.fields.type === 'experience');
-		const skills = records.filter((r) => r.fields.type === 'skill');
-		const projects = records.filter((r) => r.fields.type === 'project');
-
-		return {
-			experience: experience.slice(0, style === 'concise' ? 3 : 5),
-			skills: skills.map((s) => s.fields.name).slice(0, 12),
-			projects: projects.slice(0, style === 'concise' ? 2 : 4),
-		};
-	}
-
-	private getSkillSuggestionsForRole(targetRole: string): string[] {
-		const roleSkillMap: Record<string, string[]> = {
-			'Senior Automation Engineer': ['n8n', 'Zapier', 'Docker', 'Kubernetes', 'APIs', 'Webhooks', 'Python', 'Node.js'],
-			'Full-Stack Developer': ['React', 'Vue.js', 'Node.js', 'TypeScript', 'PostgreSQL', 'MongoDB', 'REST APIs', 'GraphQL'],
-			'DevOps Engineer': ['AWS', 'GCP', 'Terraform', 'Ansible', 'Kubernetes', 'Docker', 'Jenkins', 'GitLab CI'],
-		};
-
-		return roleSkillMap[targetRole] || ['Communication', 'Problem Solving', 'Team Collaboration'];
-	}
-
-	private createConciseDescription(description: string): string {
-		if (!description) {
-			return '';
-		}
-
-		const sentences = description.split('.').filter((s) => s.trim());
-		return sentences.slice(0, 2).join('. ') + (sentences.length > 2 ? '.' : '');
-	}
-
-	private createDetailedDescription(description: string): string {
-		return description || '';
-	}
-
-	private generateMockOutputs(workflowType: string, parameters?: any): any {
-		switch (workflowType) {
-			case 'resume_builder':
-				return {
-					resumeUrl: '/drive/resumes/latest_resume.pdf',
-					format: parameters?.style || 'concise',
-					sections: ['Summary', 'Experience', 'Skills', 'Projects'],
-				};
-
-			case 'linkedin_post':
-				return {
-					postContent: 'Excited to share my latest automation project...',
-					hashtags: ['#automation', '#n8n', '#ai'],
-					estimatedReach: '500-1000 connections',
-				};
-
-			default:
-				return {
-					status: 'completed',
-					timestamp: new Date().toISOString(),
-				};
-		}
-	}
-
-	private generateInsights(workflows: any[], executions: any[]): string[] {
-		const insights = [];
-
-		if (executions.length === 0) {
-			insights.push('No recent workflow executions detected');
-		} else {
-			const executionRate = (executions.length / workflows.length) * 100;
-			insights.push(`${executionRate.toFixed(1)}% of workflows have recent activity`);
-		}
-
-		const mostActiveType = this.getMostActiveWorkflowType(executions);
-		if (mostActiveType) {
-			insights.push(`Most active workflow type: ${mostActiveType}`);
-		}
-
-		return insights;
-	}
-
-	private getMostActiveWorkflowType(executions: any[]): string | null {
-		if (executions.length === 0) {
-			return null;
-		}
-
-		const typeCounts = executions.reduce<Record<string, number>>((acc, e) => {
-			const type = String(e.fields.type);
-			acc[type] = (acc[type] || 0) + 1;
-			return acc;
-		}, {});
-
-		return Object.entries(typeCounts).reduce((a, b) => typeCounts[a[0]] > typeCounts[b[0]] ? a : b)[0];
 	}
 }
